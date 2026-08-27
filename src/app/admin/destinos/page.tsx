@@ -1,0 +1,7 @@
+import { CollectionManager, type CollectionRecord } from "@/components/admin/collection-manager";
+import { prisma } from "@/lib/prisma";
+
+export default async function DestinationsAdminPage() {
+  const records = await prisma.destination.findMany({ where: { deletedAt: null }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
+  return <CollectionManager entity="destinos" title="Destinos" singular="Destino" description="Cadastre cidades, estados e imagens usadas no catálogo." records={records.map((item) => ({ id: item.id, name: item.name, slug: item.slug, city: item.city, state: item.state, stateCode: item.stateCode, description: item.description, coverPath: item.coverPath, active: item.active, sortOrder: item.sortOrder })) as CollectionRecord[]} columns={[{ key: "name", label: "Destino" }, { key: "city", label: "Cidade" }, { key: "stateCode", label: "UF" }, { key: "active", label: "Status", format: "active" }]} fields={[{ key: "name", label: "Nome", required: true }, { key: "slug", label: "Slug", required: true }, { key: "city", label: "Cidade", required: true }, { key: "state", label: "Estado", required: true }, { key: "stateCode", label: "UF", required: true }, { key: "coverPath", label: "Caminho da capa", placeholder: "/media/destinations/..." }, { key: "description", label: "Descrição", type: "textarea", wide: true }, { key: "sortOrder", label: "Ordem", type: "number", defaultValue: 0 }, { key: "active", label: "Status", type: "checkbox", defaultValue: true }]} />;
+}

@@ -1,0 +1,380 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum AdminRole {
+  OWNER
+  ADMIN
+  EDITOR
+}
+
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+  INACTIVE
+  ARCHIVED
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  FEW_SPOTS
+  SOLD_OUT
+  CANCELLED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum LeadStatus {
+  NEW
+  IN_PROGRESS
+  PROPOSAL_SENT
+  WON
+  LOST
+  WAITING_LIST
+}
+
+enum LeadOrigin {
+  CONTACT_FORM
+  PACKAGE_FORM
+  WHATSAPP
+  WAITING_LIST
+}
+
+enum FaqScope {
+  GENERAL
+  PACKAGE
+}
+
+model AdminUser {
+  id                String               @id @default(cuid())
+  name              String               @db.VarChar(120)
+  email             String               @unique @db.VarChar(191)
+  passwordHash      String               @db.VarChar(255)
+  role              AdminRole            @default(ADMIN)
+  active            Boolean              @default(true)
+  failedLoginCount  Int                  @default(0)
+  lockedUntil       DateTime?
+  lastLoginAt       DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  sessions          AdminSession[]
+  passwordReset     PasswordResetToken[]
+  auditLogs         AuditLog[]
+  createdPackages   Package[]            @relation("PackageCreatedBy")
+  updatedPackages   Package[]            @relation("PackageUpdatedBy")
+
+  @@index([active, deletedAt])
+}
+
+model AdminSession {
+  id            String    @id @default(cuid())
+  userId        String
+  tokenHash     String    @unique @db.Char(64)
+  csrfTokenHash String    @db.Char(64)
+  ipHash        String?   @db.Char(64)
+  userAgent     String?   @db.VarChar(500)
+  expiresAt     DateTime
+  lastSeenAt    DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  revokedAt     DateTime?
+  user          AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt, revokedAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model PackageCategory {
+  id          String    @id @default(cuid())
+  name        String    @unique @db.VarChar(100)
+  slug        String    @unique @db.VarChar(120)
+  description String?   @db.Text
+  active      Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  packages    Package[]
+
+  @@index([active, sortOrder])
+}
+
+model Destination {
+  id          String    @id @default(cuid())
+  name        String    @db.VarChar(120)
+  slug        String    @unique @db.VarChar(140)
+  city        String    @db.VarChar(120)
+  state       String    @db.VarChar(80)
+  stateCode   String    @db.Char(2)
+  description String?   @db.Text
+  coverPath   String?   @db.VarChar(500)
+  active      Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  packages    Package[]
+
+  @@index([active, stateCode, sortOrder])
+  @@index([city, stateCode])
+}
+
+model Package {
+  id                      String               @id @default(cuid())
+  name                    String               @db.VarChar(180)
+  slug                    String               @unique @db.VarChar(191)
+  summary                 String               @db.VarChar(500)
+  description             String               @db.LongText
+  categoryId              String
+  destinationId           String
+  city                    String               @db.VarChar(120)
+  state                   String               @db.VarChar(80)
+  stateCode               String               @db.Char(2)
+  departureAt             DateTime
+  returnAt                DateTime
+  boardingTime            String?              @db.VarChar(20)
+  boardingLocation        String?              @db.VarChar(240)
+  durationDays            Int
+  cashPrice               Decimal              @db.Decimal(10, 2)
+  installmentCount        Int                  @default(1)
+  installmentValue        Decimal?             @db.Decimal(10, 2)
+  installmentTotal        Decimal?             @db.Decimal(10, 2)
+  totalSpots              Int?
+  remainingSpots          Int?
+  showSpots               Boolean              @default(false)
+  accommodation           String?              @db.Text
+  transport               String?              @db.Text
+  meals                   String?              @db.Text
+  guide                    String?              @db.VarChar(180)
+  childPolicy             String?              @db.Text
+  requiredDocuments       String?              @db.Text
+  paymentMethods          String?              @db.Text
+  importantNotes          String?              @db.Text
+  mapUrl                   String?              @db.VarChar(600)
+  publicationStatus       PublicationStatus    @default(DRAFT)
+  availabilityStatus      AvailabilityStatus   @default(AVAILABLE)
+  featured                Boolean              @default(false)
+  featuredOrder           Int?
+  featuredStartsAt        DateTime?
+  featuredEndsAt          DateTime?
+  waitingListEnabled      Boolean              @default(false)
+  publishedAt             DateTime?
+  publicationEndsAt       DateTime?
+  seoTitle                String?              @db.VarChar(70)
+  seoDescription          String?              @db.VarChar(170)
+  shareImagePath          String?              @db.VarChar(500)
+  viewCount               Int                  @default(0)
+  whatsappClickCount      Int                  @default(0)
+  createdById             String?
+  updatedById             String?
+  deletedAt               DateTime?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  category                PackageCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  destination             Destination          @relation(fields: [destinationId], references: [id], onDelete: Restrict)
+  createdBy               AdminUser?           @relation("PackageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy               AdminUser?           @relation("PackageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  media                   PackageMedia[]
+  includedItems           PackageIncludedItem[]
+  excludedItems           PackageExcludedItem[]
+  itinerary               ItineraryItem[]
+  leads                   Lead[]
+  faqs                    Faq[]
+
+  @@index([publicationStatus, deletedAt])
+  @@index([availabilityStatus])
+  @@index([departureAt, returnAt])
+  @@index([destinationId, publicationStatus])
+  @@index([categoryId, publicationStatus])
+  @@index([featured, featuredOrder])
+  @@index([publishedAt, publicationEndsAt])
+}
+
+model PackageMedia {
+  id            String    @id @default(cuid())
+  packageId     String
+  type          MediaType
+  path          String    @db.VarChar(500)
+  thumbnailPath String?   @db.VarChar(500)
+  posterPath    String?   @db.VarChar(500)
+  altText       String?   @db.VarChar(240)
+  mimeType      String    @db.VarChar(120)
+  sizeBytes     BigInt
+  width         Int?
+  height        Int?
+  durationMs    Int?
+  isCover       Boolean   @default(false)
+  isPreview     Boolean   @default(false)
+  sortOrder     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  package       Package   @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([packageId, sortOrder])
+  @@index([packageId, isCover])
+}
+
+model PackageIncludedItem {
+  id        String  @id @default(cuid())
+  packageId String
+  text      String  @db.VarChar(500)
+  sortOrder Int     @default(0)
+  package   Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([packageId, sortOrder])
+}
+
+model PackageExcludedItem {
+  id        String  @id @default(cuid())
+  packageId String
+  text      String  @db.VarChar(500)
+  sortOrder Int     @default(0)
+  package   Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([packageId, sortOrder])
+}
+
+model ItineraryItem {
+  id        String  @id @default(cuid())
+  packageId String
+  dayNumber Int?
+  time      String? @db.VarChar(20)
+  title     String  @db.VarChar(180)
+  details   String  @db.Text
+  sortOrder Int     @default(0)
+  package   Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([packageId, sortOrder])
+}
+
+model Lead {
+  id          String     @id @default(cuid())
+  name        String?    @db.VarChar(120)
+  phone       String?    @db.VarChar(30)
+  email       String?    @db.VarChar(191)
+  packageId   String?
+  message     String?    @db.Text
+  origin      LeadOrigin
+  status      LeadStatus @default(NEW)
+  adminNotes  String?    @db.Text
+  consentAt   DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  package     Package?   @relation(fields: [packageId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([packageId, createdAt])
+  @@index([origin, createdAt])
+}
+
+model Testimonial {
+  id          String    @id @default(cuid())
+  name        String    @db.VarChar(120)
+  destination String?   @db.VarChar(160)
+  quote       String    @db.Text
+  rating      Int       @default(5)
+  avatarPath  String?   @db.VarChar(500)
+  active      Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([active, sortOrder])
+}
+
+model Faq {
+  id        String    @id @default(cuid())
+  packageId String?
+  scope     FaqScope  @default(GENERAL)
+  question  String    @db.VarChar(500)
+  answer    String    @db.Text
+  active    Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  package   Package?  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([scope, active, sortOrder])
+  @@index([packageId, active])
+}
+
+model GalleryItem {
+  id        String    @id @default(cuid())
+  title     String?   @db.VarChar(180)
+  path      String    @db.VarChar(500)
+  mediaType MediaType @default(IMAGE)
+  altText   String?   @db.VarChar(240)
+  active    Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([active, sortOrder])
+}
+
+model CompanySettings {
+  id                    String   @id @default(cuid())
+  singletonKey          String   @unique @default("default") @db.VarChar(30)
+  companyName           String   @db.VarChar(160)
+  city                  String   @db.VarChar(120)
+  state                 String   @db.VarChar(80)
+  phonePrimary          String   @db.VarChar(30)
+  phoneSecondary        String?  @db.VarChar(30)
+  whatsappNumber        String   @db.VarChar(30)
+  instagramHandle       String?  @db.VarChar(120)
+  address               String   @db.VarChar(500)
+  businessHours         String?  @db.VarChar(300)
+  mapEmbedUrl           String?  @db.VarChar(800)
+  aboutTitle            String?  @db.VarChar(240)
+  aboutText             String?  @db.LongText
+  mission               String?  @db.Text
+  vision                String?  @db.Text
+  valuesText            String?  @db.Text
+  fewSpotsThreshold     Int      @default(5)
+  maxFeaturedPackages   Int      @default(6)
+  logoDarkPath          String?  @db.VarChar(500)
+  logoLightPath         String?  @db.VarChar(500)
+  defaultShareImagePath String?  @db.VarChar(500)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String     @id @default(cuid())
+  adminUserId String?
+  action      String     @db.VarChar(100)
+  entityType  String     @db.VarChar(100)
+  entityId    String?    @db.VarChar(191)
+  summary     String?    @db.VarChar(500)
+  beforeState Json?
+  afterState  Json?
+  ipHash      String?    @db.Char(64)
+  userAgent   String?    @db.VarChar(500)
+  createdAt   DateTime   @default(now())
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([adminUserId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([action, createdAt])
+}
