@@ -1,3 +1,9 @@
+<p align="center"><img src=".github/assets/banner.svg" alt="D’Hages Turismo" width="100%" /></p>
+
+<p align="center"><a href="https://github.com/T-Lucas43">Perfil</a> · <a href="https://github.com/T-Lucas43?tab=repositories">Mais projetos</a> · <a href="https://www.linkedin.com/in/tarcisio-lucas-io">LinkedIn</a></p>
+
+---
+
 # D’Hages Turismo
 
 Plataforma completa para divulgação e gestão de pacotes turísticos da D’Hages Turismo. O projeto reúne site público responsivo, catálogo pesquisável, páginas de detalhes, captação de leads e um painel administrativo protegido.
